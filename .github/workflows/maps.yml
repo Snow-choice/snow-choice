@@ -1,23 +1,39 @@
 name: Update ski maps
+
 on:
   workflow_dispatch:
+
 permissions:
   contents: write
+
+concurrency:
+  group: ski-map-update
+  cancel-in-progress: false
+
 jobs:
   maps:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+
       - name: Fetch OSM geometry
         id: fetch
         continue-on-error: true
         run: python3 fetch_maps.py
+
       - name: Commit successful snapshots
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if [ -d maps ]; then git add maps; fi
-          if ! git diff --cached --quiet; then git commit -m 'Update ski maps'; git push; fi
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update ski maps'
+            git pull --rebase origin main
+            git push origin main
+          fi
+
       - name: Report partial failure
         if: steps.fetch.outcome == 'failure'
         run: exit 1
